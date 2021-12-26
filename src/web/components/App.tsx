@@ -12,6 +12,8 @@ const { myAPI } = window;
 
 export const App = () => {
   const [url, setUrl] = useState<string>(empty);
+  const [playVideo, setPlayVideo] = useState<boolean>(false);
+  const [motionUrl, setMotionUrl] = useState<string | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapObj: React.MutableRefObject<L.Map | null> = useRef(null);
@@ -32,13 +34,26 @@ export const App = () => {
       const node = mapRef.current;
 
       if (node) {
-        const img = new Image();
-        img.onload = () => {
-          const zoom = getZoom(img.width, width, img.height, height);
+        let media: HTMLImageElement | HTMLVideoElement;
+
+        if (motionUrl && playVideo) {
+          media = document.createElement('video');
+        } else {
+          media = new Image();
+        }
+
+        const onLoaded = (): void => {
+          const mediaHeight =
+            media instanceof HTMLVideoElement
+              ? media.videoHeight
+              : media.height;
+          const mediaWidth =
+            media instanceof HTMLVideoElement ? media.videoWidth : media.width;
+          const zoom = getZoom(mediaWidth, width, mediaHeight, height);
 
           const bounds = new L.LatLngBounds([
-            [img.height * zoom, 0],
-            [0, img.width * zoom],
+            [mediaHeight * zoom, 0],
+            [0, mediaWidth * zoom],
           ]);
 
           if (mapObj.current) {
@@ -63,22 +78,51 @@ export const App = () => {
             if (mapObj.current) mapObj.current.setView(center, 0);
           });
 
-          if (img.width < width && img.height < height) {
+          if (media.width < width && media.height < height) {
             const center = bounds.getCenter();
             mapObj.current.setView(center, 0, { animate: false });
           }
 
-          L.imageOverlay(img.src, bounds).addTo(mapObj.current);
+          if (motionUrl && playVideo) {
+            L.videoOverlay(media.src, bounds, {
+              autoplay: true,
+              loop: true,
+            }).addTo(mapObj.current);
+          } else {
+            L.imageOverlay(media.src, bounds).addTo(mapObj.current);
+          }
 
           node.blur();
           node.focus();
         };
 
-        img.src = url;
+        if (motionUrl && playVideo) {
+          media.onloadeddata = onLoaded;
+          media.src = motionUrl;
+        } else {
+          media.onload = onLoaded;
+          media.src = url;
+        }
       }
     },
-    [url]
+    [url, motionUrl, playVideo]
   );
+
+  const setMotionUrlFromFilepath = async (filepath: string): Promise<void> => {
+    if (filepath === empty || filepath === null) {
+      setMotionUrl(null);
+      return;
+    }
+
+    const motionStart = await myAPI.motioncheck(filepath);
+    if (motionStart < 0) {
+      setMotionUrl(null);
+      return;
+    }
+
+    const motionDataUrl = await myAPI.motionAsDataURL(filepath, motionStart);
+    setMotionUrl(motionDataUrl);
+  };
 
   const onPrevent = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -95,6 +139,7 @@ export const App = () => {
 
       const mime = await myAPI.mimecheck(file.path);
       if (mime) {
+        setMotionUrlFromFilepath(file.path);
         setUrl(file.path);
         myAPI.history(file.path);
       }
@@ -106,12 +151,14 @@ export const App = () => {
 
     const dir = await myAPI.dirname(url);
     if (!dir) {
+      setMotionUrl(null);
       setUrl(empty);
       return;
     }
 
     const list = await myAPI.readdir(dir);
     if (!list || list.length === 0) {
+      setMotionUrl(null);
       setUrl(empty);
       return;
     }
@@ -120,8 +167,10 @@ export const App = () => {
 
     const index = list.indexOf(url);
     if (index === list.length - 1 || index === -1) {
+      setMotionUrl(list[0]);
       setUrl(list[0]);
     } else {
+      setMotionUrlFromFilepath(list[index + 1]);
       setUrl(list[index + 1]);
     }
   }, [url]);
@@ -131,12 +180,14 @@ export const App = () => {
 
     const dir = await myAPI.dirname(url);
     if (!dir) {
+      setMotionUrl(null);
       setUrl(empty);
       return;
     }
 
     const list = await myAPI.readdir(dir);
     if (!list || list.length === 0) {
+      setMotionUrl(null);
       setUrl(empty);
       return;
     }
@@ -145,25 +196,36 @@ export const App = () => {
 
     const index = list.indexOf(url);
     if (index === 0) {
+      setMotionUrlFromFilepath(list[list.length - 1]);
       setUrl(list[list.length - 1]);
     } else if (index === -1) {
+      setMotionUrlFromFilepath(list[0]);
       setUrl(list[0]);
     } else {
+      setMotionUrlFromFilepath(list[index - 1]);
       setUrl(list[index - 1]);
     }
   }, [url]);
+
+  const onMotion = useCallback(async (): Promise<void> => {
+    if (!motionUrl) return;
+
+    setPlayVideo(!playVideo);
+  }, [motionUrl, playVideo]);
 
   const onRemove = useCallback(async () => {
     if (url === empty) return;
 
     const dir = await myAPI.dirname(url);
     if (!dir) {
+      setMotionUrl(null);
       setUrl(empty);
       return;
     }
 
     const list = await myAPI.readdir(dir);
     if (!list || list.length === 0 || !list.includes(url)) {
+      setMotionUrl(null);
       setUrl(empty);
       return;
     }
@@ -174,13 +236,16 @@ export const App = () => {
     const newList = await myAPI.readdir(dir);
 
     if (!newList || newList.length === 0) {
+      setMotionUrl(null);
       setUrl(empty);
       return;
     }
 
     if (index > newList.length - 1) {
+      setMotionUrlFromFilepath(newList[0]);
       setUrl(newList[0]);
     } else {
+      setMotionUrlFromFilepath(newList[index]);
       setUrl(newList[index]);
     }
   }, [url]);
@@ -191,6 +256,7 @@ export const App = () => {
 
     const mime = await myAPI.mimecheck(filepath);
     if (mime) {
+      setMotionUrlFromFilepath(filepath);
       setUrl(filepath);
       myAPI.history(filepath);
     }
@@ -201,6 +267,7 @@ export const App = () => {
 
     const mime = await myAPI.mimecheck(filepath);
     if (mime) {
+      setMotionUrlFromFilepath(filepath);
       setUrl(filepath);
       myAPI.history(filepath);
     }
@@ -238,6 +305,14 @@ export const App = () => {
       myAPI.removeMenuPrev();
     };
   }, [onPrev]);
+
+  useEffect(() => {
+    myAPI.menuMotion(onMotion);
+
+    return (): void => {
+      myAPI.removeMenuMotion();
+    };
+  }, [onMotion]);
 
   useEffect(() => {
     myAPI.menuRemove(onRemove);
@@ -293,7 +368,9 @@ export const App = () => {
           onPrev={onPrev}
           onNext={onNext}
           onRemove={onRemove}
+          onMotion={onMotion}
           onClickOpen={onClickOpen}
+          motionEnabled={motionUrl !== null}
         />
       </div>
       <div className={url === empty ? 'view init' : 'view'} ref={mapRef} />

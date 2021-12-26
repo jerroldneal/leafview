@@ -107,6 +107,14 @@ export const createMenu = (win: BrowserWindow, store: Store<StoreType>) => {
       visible: false,
     },
     { type: 'separator' },
+    {
+      id: 'motion',
+      label: i18next.t('motion'),
+      accelerator: 'M',
+      enabled: false,
+      click: (): void => win.webContents.send('menu-motion'),
+    },
+    { type: 'separator' },
   ];
 
   if (!isDarwin) {

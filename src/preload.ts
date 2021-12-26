@@ -23,6 +23,15 @@ contextBridge.exposeInMainWorld('myAPI', {
   updateTitle: async (filepath: string): Promise<void> =>
     ipcRenderer.invoke('update-title', filepath),
 
+  motioncheck: async (filepath: string): Promise<number> =>
+    await ipcRenderer.invoke('motion-check', filepath),
+
+  motionAsDataURL: async (
+    filepath: string,
+    motionStart: number
+  ): Promise<string> =>
+    await ipcRenderer.invoke('motion-as-data-url', filepath, motionStart),
+
   menuNext: (listener: () => Promise<void>) =>
     ipcRenderer.on('menu-next', listener),
   removeMenuNext: () => ipcRenderer.removeAllListeners('menu-next'),
@@ -38,4 +47,8 @@ contextBridge.exposeInMainWorld('myAPI', {
   menuOpen: (listener: (_e: Event, filepath: string) => Promise<void>) =>
     ipcRenderer.on('menu-open', listener),
   removeMenuOpen: () => ipcRenderer.removeAllListeners('menu-open'),
+
+  menuMotion: (listener: () => Promise<void>) =>
+    ipcRenderer.on('menu-motion', listener),
+  removeMenuMotion: () => ipcRenderer.removeAllListeners('menu-motion'),
 });

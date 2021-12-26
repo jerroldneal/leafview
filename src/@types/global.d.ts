@@ -21,6 +21,10 @@ export interface IElectronAPI {
 
   updateTitle: (filepath: string) => Promise<void>;
 
+  motioncheck: (filepath: string) => Promise<number>;
+
+  motionAsDataURL: (filepath: string, motionStart: number) => Promise<string>;
+
   menuNext: (listener: () => Promise<void>) => Electron.IpcRenderer;
   removeMenuNext: () => Electron.IpcRenderer;
 
@@ -34,4 +38,7 @@ export interface IElectronAPI {
     listener: (_e: Event, filepath: string) => Promise<void>
   ) => Electron.IpcRenderer;
   removeMenuOpen: () => Electron.IpcRenderer;
+
+  menuMotion: (listener: () => Promise<void>) => Electron.IpcRenderer;
+  removeMenuMotion: () => Electron.IpcRenderer;
 }

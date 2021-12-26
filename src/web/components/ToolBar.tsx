@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import { FaFolderOpen, FaPlay, FaTrash } from 'react-icons/fa';
+import { FaFolderOpen, FaPlay, FaTrash, FaPlayCircle } from 'react-icons/fa';
 
 import './ToolBar.scss';
 
@@ -7,7 +7,9 @@ interface Props {
   onPrev: () => Promise<void>;
   onNext: () => Promise<void>;
   onRemove: () => Promise<void>;
+  onMotion: () => Promise<void>;
   onClickOpen: () => Promise<void>;
+  motionEnabled: boolean;
 }
 
 export const ToolBar = (props: Props): JSX.Element => {
@@ -38,6 +40,18 @@ export const ToolBar = (props: Props): JSX.Element => {
           <FaPlay size="1.5rem" />
         </div>
       </div>
+      {props.motionEnabled ? (
+        <div className="motion">
+          <div
+            className="icon"
+            data-testid="motion"
+            title={i18next.t('motion')}
+            onClick={props.onMotion}
+          >
+            <FaPlayCircle size="2rem" />
+          </div>
+        </div>
+      ) : null}
       <div className="trash">
         <div
           className="icon"
